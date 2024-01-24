@@ -72,15 +72,22 @@ void setup()
   initMQTT();
 
   //Setup Hardware Timer for MQTT publish
-  Timer0_Cfg = timerBegin(0, 200, true);
-  timerAttachInterrupt(Timer0_Cfg, &Timer0_ISR, true);
-  timerAlarmWrite(Timer0_Cfg, 10000000, true);
-  timerAlarmEnable(Timer0_Cfg);
+  //Timer0_Cfg = timerBegin(0, 200, true);
+  //timerAttachInterrupt(Timer0_Cfg, &Timer0_ISR, true);
+  //timerAlarmWrite(Timer0_Cfg, 10000000, true);
+  //timerAlarmEnable(Timer0_Cfg);
 
   // Setup motion sensor pin and assign to interrupt
   pinMode(MOTION_INPUT_PIN, INPUT);
-  gpio_set_intr_type(MOTION_INPUT_PIN, GPIO_INTR_POSEDGE);
-  gpio_isr_handler_add(MOTION_INPUT_PIN, move_HANDLER, NULL);
+  attachInterrupt(MOTION_INPUT_PIN, move_HANDLER, RISING);
+  //gpio_set_intr_type(MOTION_INPUT_PIN, GPIO_INTR_POSEDGE);
+  //gpio_isr_handler_add(MOTION_INPUT_PIN, move_HANDLER, NULL);
+}
+
+
+void FeedEngineOn(int FeedLoad)
+{
+  asdf
 }
 
 
@@ -92,9 +99,12 @@ void loop()
     MQTTMessageCallback(IsMotion);
     delay(500);
     digitalWrite(LED_BUILTIN, HIGH);
+    IsMotion = false;
   } else {
     MQTTListernLoop();
   }
-  IsMotion = false;
+
+  FeedEngineOn(FeedCommandCallback());
+  
   esp_task_wdt_reset();
 }

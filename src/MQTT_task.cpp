@@ -2,6 +2,9 @@
 #include "controlWiFi.h"
 #include "Credentials.h"
 
+char mqtt_command[8];
+char mqtt_argument[8];
+
 //Define MQTT Topic for HomeAssistant Discovery
 const char *MQTTMotionTopicConfig = MQTT_TOPIC_CONFIG;
 
@@ -27,6 +30,19 @@ WiFiClient client;
 #include <PubSubClient.h>
 PubSubClient mqtt(client);
 
+void MQTTListenCallback(char* topic, byte* payload, unsigned int length)
+{
+  Serial.print("Command arrived");
+  StaticJsonDocument<256> doc;
+  deserializeJson(doc, payload, length);
+  //Serial.println(doc);
+
+  //mqtt_command = doc["Command"];
+  strlcpy(mqtt_command, doc["Command"] | "", 8);
+  //mqtt_argument = doc["load"];
+  strlcpy(mqtt_argument, doc["Load"] | "", 8);
+} 
+
 
 void initMQTT()
 {
@@ -41,7 +57,7 @@ void initMQTT()
 
   //Initialise MQTT autodiscovery topic and sensor
   mqtt.setServer(mqtt_host, mqtt_port);
-  mqtt.setCallback(MQTTListernCallback);
+  mqtt.setCallback(MQTTListenCallback);
 
   Serial.print("Testing connection to mqtt broker...");
   while (!mqtt.connect(DEVICE_BOARD_NAME, mqtt_user, mqtt_pass))
@@ -101,6 +117,14 @@ void subscribeMQTTTopic(const char *Topic)
   //Gracefully close connection to MQTT broker
 }
 
+void MQTTListernLoop()
+{
+  if (!mqtt.connected()) {
+    initMQTT();
+  } else {
+    mqtt.loop();
+  }
+}
 
 void MQTTMessageCallback(bool IsMotion)
 {
@@ -111,33 +135,26 @@ void MQTTMessageCallback(bool IsMotion)
   if (mqtt.connected()) {
 
     sprintf(MessageBuf, "%s", IsMotion?"ON":"OFF");
-    mqtt.publish(MQTTchEnableTopicState, MessageBuf, false);
+    mqtt.publish(MQTTMotionTopicState, MessageBuf, false);
   }
   else {
     Serial.println("Unable to connect to MQTT broker");
     Serial.println("Cycle is skipped");
   }
-  mqtt.disconnect();
+  //mqtt.disconnect();
   Serial.println("Done");
 }
 
-MQTTListernLoop()
+int FeedCommandCallback()
 {
-  if (!mqtt.connected()) {
-    initMQTT();
-  } else {
-    mqtt.loop();
+  int load = 0;
+  if(strcmp(mqtt_command, "Feed") == 0)
+  {
+    int i = 0;
+    for (i = 0; mqtt_argument[i] != '\0'; i++)
+    {
+      load = load * 10 + (mqtt_argument[i] - '0');
+    }
   }
+  return load;
 }
-
-
-MQTTListernCallback(char* topic, byte* payload, unsigned int length)
-{
-  Serial.print("Command arrived");
-  StaticJsonDocument<256> doc;
-  deserializeJson(doc, payload, length);
-  Serial.println(doc);
-
-  mqtt_command = doc["Command"];
-  mqtt_argument = doc["load"];
-} 

@@ -26,8 +26,8 @@ void subscribeMQTTTopic(const char *Topic);
 
 void publishMQTTPayload(const char *Topic, char *PayloadMessage);
 
-void MQTTMessageCallback(float SetPoint, bool CHActive, float MaxModulationLevel, float RoomSetPoint, float RoomTemperature);
+void MQTTMessageCallback(bool IsMotion);
 
 void MQTTListernLoop();
 
-void MQTTListernCallback(char* topic, byte* payload, unsigned int length);
+int FeedCommandCallback();

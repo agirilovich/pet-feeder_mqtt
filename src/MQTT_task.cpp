@@ -5,13 +5,16 @@
 char mqtt_command[8];
 char mqtt_argument[8];
 
-//Define MQTT Topic for HomeAssistant Discovery
-const char *MQTTMotionTopicConfig = MQTT_TOPIC_CONFIG;
+//Define MQTT Topic for HomeAssistant Motion Discovery
+const char *MQTTMotionTopicConfig = MQTT_TOPIC_SENSOR_CONFIG;
 
+//Define MQTT Topic for HomeAssistant Button Discovery
+const char *MQTTButtonTopicConfig = MQTT_TOPIC_BUTTON_CONFIG;
 
-//Define MQTT Topic for HomeAssistant Sensor state
-const char *MQTTMotionTopicState = MQTT_TOPIC_STATE;
+//Define MQTT Topic for HomeAssistant Motion Sensor state
+const char *MQTTMotionTopicState = MQTT_TOPIC_SENSOR_STATE;
 
+//Define MQTT Topic for Manage Feed Engine
 const char *MQTTTopicControl = MQTT_TOPIC_CTRL;
 
 
@@ -23,7 +26,8 @@ const char *mqtt_pass = mqtt_password;
 //Define objects for MQTT messages in JSON format
 #include <ArduinoJson.h>
 StaticJsonDocument<512> JsonSensorConfig;
-char Buffer[1024];
+StaticJsonDocument<512> JsonButtonConfig;
+char Buffer[512];
 
 WiFiClient client;
 
@@ -32,15 +36,18 @@ PubSubClient mqtt(client);
 
 void MQTTListenCallback(char* topic, byte* payload, unsigned int length)
 {
-  Serial.print("Command arrived");
+  Serial.print("Command received: ");
   StaticJsonDocument<256> doc;
   deserializeJson(doc, payload, length);
   //Serial.println(doc);
 
   //mqtt_command = doc["Command"];
   strlcpy(mqtt_command, doc["Command"] | "", 8);
+  Serial.println(mqtt_command);
   //mqtt_argument = doc["load"];
   strlcpy(mqtt_argument, doc["Load"] | "", 8);
+  Serial.print("With argument: ");
+  Serial.println(mqtt_argument);
 } 
 
 
@@ -69,7 +76,7 @@ void initMQTT()
   if (mqtt.connected()) {
     Serial.println(" connected!");
   } 
-
+  //Motion Sensor
   JsonSensorConfig["name"] = "Pet Feeder motion detector";
   JsonSensorConfig["device_class"] = "motion";
   JsonSensorConfig["state_class"] = "measurement";
@@ -80,15 +87,33 @@ void initMQTT()
   JsonObject device  = JsonSensorConfig.createNestedObject("device");
   device["identifiers"][0] = "petfeederw000";
   device["connections"][0][0] = "mac";
-  device["connections"][0][1] = "08:B6:1F:33:7D:AC";
+  device["connections"][0][1] = "D4:D4:DA:CF:64:D8";
   device["model"] = "PET-FEEDER-01";
   device["name"] = SENSOR_NAME;
   device["manufacturer"] = "Aliexpress"; 
   device["sw_version"] = "1.0";  
   serializeJson(JsonSensorConfig, Buffer);
   initializeMQTTTopic(MQTTMotionTopicConfig, Buffer);
-  subscribeMQTTTopic(MQTTTopicControl);
 
+  //Feed Button
+  JsonButtonConfig["name"] = "Pet Feeder feed button";
+  JsonButtonConfig["command_topic"] = MQTTTopicControl;
+  JsonButtonConfig["payload_press"] = "{\"Command\":\"feed\", \"Load\":\"5\"}";
+  JsonButtonConfig["uniq_id"] = "waterfiltertdsppn";
+    
+  device  = JsonButtonConfig.createNestedObject("device");
+  device["identifiers"][0] = "petfeederw000";
+  device["connections"][0][0] = "mac";
+  device["connections"][0][1] = "D4:D4:DA:CF:64:D8";
+  device["model"] = "PET-FEEDER-01";
+  device["name"] = SENSOR_NAME;
+  device["manufacturer"] = "Aliexpress"; 
+  device["sw_version"] = "1.0";  
+
+  serializeJson(JsonButtonConfig, Buffer);
+  initializeMQTTTopic(MQTTButtonTopicConfig, Buffer);
+
+  subscribeMQTTTopic(MQTTTopicControl);
 }
 
 void initializeMQTTTopic(const char *Topic, char *SensorConfig)
@@ -101,8 +126,10 @@ void initializeMQTTTopic(const char *Topic, char *SensorConfig)
   //Publish message to AutoDiscovery topic
   if (mqtt.publish(Topic, SensorConfig, true)) {
     Serial.println("Done");
+  } else {
+    mqtt.publish(Topic, SensorConfig, true);
   }
-    
+  
   //Gracefully close connection to MQTT broker
 }
 
@@ -148,7 +175,7 @@ void MQTTMessageCallback(bool IsMotion)
 int FeedCommandCallback()
 {
   int load = 0;
-  if(strcmp(mqtt_command, "Feed") == 0)
+  if(strcmp(mqtt_command, "feed") == 0)
   {
     int i = 0;
     for (i = 0; mqtt_argument[i] != '\0'; i++)
@@ -156,5 +183,8 @@ int FeedCommandCallback()
       load = load * 10 + (mqtt_argument[i] - '0');
     }
   }
+  strlcpy(mqtt_command, "", 1);
+  strlcpy(mqtt_argument, "", 1);
+
   return load;
 }

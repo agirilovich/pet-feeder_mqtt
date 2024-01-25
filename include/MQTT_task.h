@@ -1,5 +1,5 @@
 #ifndef DEVICE_BOARD_NAME
-#  define DEVICE_BOARD_NAME "OThermGW"
+#  define DEVICE_BOARD_NAME "PetFeeder"
 #endif
 
 #ifndef MQTT_GENERAL_PREFIX
@@ -7,14 +7,16 @@
 #endif
 
 #define MQTT_SENSORS_NAME "/binary_sensor/petfeedermotion"
+#define MQTT_BUTTON_NAME "/button/petfeedermotion"
 #define MQTT_CONFIG_PREFIX "homeassistant"
 #define SENSOR_NAME "PetFeederMotion"
 
 #define LIMIT_MQTT_FAILURE 10
 
-#define MQTT_TOPIC_CONFIG MQTT_CONFIG_PREFIX MQTT_SENSORS_NAME "/config"
+#define MQTT_TOPIC_SENSOR_CONFIG MQTT_CONFIG_PREFIX MQTT_SENSORS_NAME "/config"
+#define MQTT_TOPIC_BUTTON_CONFIG MQTT_CONFIG_PREFIX MQTT_BUTTON_NAME "/config"
 
-#define MQTT_TOPIC_STATE MQTT_GENERAL_PREFIX "/" DEVICE_BOARD_NAME "/state"
+#define MQTT_TOPIC_SENSOR_STATE MQTT_GENERAL_PREFIX "/" DEVICE_BOARD_NAME "/motion/state"
 
 #define MQTT_TOPIC_CTRL MQTT_GENERAL_PREFIX "/" DEVICE_BOARD_NAME "/control"
 

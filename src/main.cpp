@@ -13,7 +13,9 @@
 
 #define LED_BUILTIN 22
 
-#define MOTION_INPUT_PIN 13
+#define MOTION_INPUT_PIN 25
+
+#define ENGINE_OUTPUT_PIN 26
 
 bool IsMotion = false;
 
@@ -23,6 +25,29 @@ hw_timer_t *Timer0_Cfg = NULL;
 //Interrupt handler for motion detect
 void IRAM_ATTR move_HANDLER() {
   IsMotion = true;
+}
+
+void FeedEngineOff()
+{
+  Serial.println("Stop engine.");
+  timerWrite(Timer0_Cfg, 0);
+  timerAlarmDisable(Timer0_Cfg);
+  timerDetachInterrupt(Timer0_Cfg);
+  digitalWrite(ENGINE_OUTPUT_PIN, LOW);
+}
+
+void FeedEngineOn(int FeedLoad)
+{
+  if(FeedLoad > 0) {
+    Serial.print("Feed command has been detected. Switching on engine for ");
+    Serial.print(FeedLoad);
+    Serial.println(" sec.");
+    digitalWrite(ENGINE_OUTPUT_PIN, HIGH);
+    timerRestart(Timer0_Cfg);
+    timerAlarmWrite(Timer0_Cfg, FeedLoad * 1000 * 10, false);
+    timerAttachInterrupt(Timer0_Cfg, &FeedEngineOff, true);
+    timerAlarmEnable(Timer0_Cfg);
+  }
 }
 
 void setup()
@@ -71,16 +96,14 @@ void setup()
 
   initMQTT();
 
-  //Setup Hardware Timer for MQTT publish
-  Timer0_Cfg = timerBegin(0, 200, true);
-  timerAttachInterrupt(Timer0_Cfg, &Timer0_ISR, true);
-  timerAlarmWrite(Timer0_Cfg, 10000000, true);
-  timerAlarmEnable(Timer0_Cfg);
-
+  //Setup Hardware Timer for motor 
+  Timer0_Cfg = timerBegin(0, 8000, true);
+  
   // Setup motion sensor pin and assign to interrupt
   pinMode(MOTION_INPUT_PIN, INPUT);
-  gpio_set_intr_type(MOTION_INPUT_PIN, GPIO_INTR_POSEDGE);
-  gpio_isr_handler_add(MOTION_INPUT_PIN, move_HANDLER, NULL);
+  attachInterrupt(MOTION_INPUT_PIN, move_HANDLER, RISING);
+
+  pinMode(ENGINE_OUTPUT_PIN, OUTPUT);
 }
 
 
@@ -88,13 +111,17 @@ void loop()
 {
   if (IsMotion)
   {
+    Serial.println("Motion is Detected. Sending mqtt message...");
     digitalWrite(LED_BUILTIN, LOW);
     MQTTMessageCallback(IsMotion);
     delay(500);
     digitalWrite(LED_BUILTIN, HIGH);
+    IsMotion = false;
   } else {
     MQTTListernLoop();
   }
-  IsMotion = false;
+
+  FeedEngineOn(FeedCommandCallback());
+  delay(50);
   esp_task_wdt_reset();
 }

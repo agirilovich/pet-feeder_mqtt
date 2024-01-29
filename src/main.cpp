@@ -43,6 +43,7 @@ void FeedEngineOn(int FeedLoad)
     Serial.print(FeedLoad);
     Serial.println(" sec.");
     digitalWrite(ENGINE_OUTPUT_PIN, HIGH);
+    timerRestart(Timer0_Cfg);
     timerAlarmWrite(Timer0_Cfg, FeedLoad * 1000 * 10, false);
     timerAttachInterrupt(Timer0_Cfg, &FeedEngineOff, true);
     timerAlarmEnable(Timer0_Cfg);
